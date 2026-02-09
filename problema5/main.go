@@ -12,12 +12,15 @@ import (
 // TODO: completa los pasos y observa la diferencia entre Mutex y RWMutex.
 
 type baseDatos struct {
-	mu sync.RWMutex // TODO: cambia a sync.Mutex para comparar comportamiento
+	mu sync.Mutex // TODO: cambia a sync.Mutex para comparar comportamiento
 	m  map[string]int
 }
 
 func (db *baseDatos) leer(clave string) (int, bool) {
 	// TODO: usar RLock/RUnlock (o Lock/Unlock si usas Mutex)
+
+	db.mu.Lock()
+	defer db.mu.Unlock()
 
 	v, ok := db.m[clave]
 	return v, ok
@@ -25,7 +28,8 @@ func (db *baseDatos) leer(clave string) (int, bool) {
 
 func (db *baseDatos) escribir(clave string, valor int) {
 	// TODO: usar Lock/Unlock para escritura
-
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	db.m[clave] = valor
 }
 
@@ -61,14 +65,15 @@ func main() {
 
 	// precarga
 	for _, k := range claves {
-
+		db.escribir(k, rand.Intn(1000))
 	}
 
 	var wg sync.WaitGroup
 
 	// TODO: experimenta con # de lectores y escritores
-	nLectores := 5
-	nEscritores := 2
+
+	nLectores := 3
+	nEscritores := 1
 
 	wg.Add(nLectores + nEscritores)
 	for i := 1; i <= nLectores; i++ {
