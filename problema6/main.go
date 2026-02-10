@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -18,24 +21,32 @@ func deadlock() {
 
 	go func() {
 		defer wg.Done()
-		fmt.Println("G1: Lock mu1") 
+		fmt.Println("G1: Lock mu1")
 		// TODO: adquirir mu1
+		mu1.Lock()
+		defer mu1.Unlock()
 
 		time.Sleep(100 * time.Millisecond) // fuerza entrelazado
-		fmt.Println("G1: Lock mu2") 
+		fmt.Println("G1: Lock mu2")
 		// TODO: adquirir mu2
+		mu2.Lock()
+		defer mu2.Unlock()
 
 		fmt.Println("G1: listo")
 	}()
 
 	go func() {
 		defer wg.Done()
-		fmt.Println("G2: Lock mu2") 
+		fmt.Println("G2: Lock mu2")
 		// TODO: adquirir mu2
+		mu2.Lock()
+		defer mu2.Unlock()
 
 		time.Sleep(100 * time.Millisecond)
-		fmt.Println("G2: Lock mu1") 
+		fmt.Println("G2: Lock mu1")
 		// TODO: adquirir mu1
+		mu1.Lock()
+		defer mu1.Unlock()
 
 		fmt.Println("G2: listo")
 	}()
@@ -53,11 +64,14 @@ func seguroOrdenado() {
 	lockEnOrden := func(a, b *sync.Mutex) func() func() {
 		// retorna: lock():unlock()
 		return func() func() {
+			a.Lock()
+			b.Lock()
 			// TODO: adquirir a luego b
 
 			return func() {
 				// TODO: liberar b luego a
-
+				b.Unlock()
+				a.Unlock()
 			}
 		}
 	}
@@ -72,9 +86,9 @@ func seguroOrdenado() {
 
 	go func() {
 		defer wg.Done()
-		unlock := lockEnOrden(&mu1, &mu2)()
+		unlock := lockEnOrden(&mu2, &mu1)()
 		defer unlock()
-		fmt.Println("G2: trabajo con mu1->mu2")
+		fmt.Println("G2: trabajo con mu2->mu1")
 		time.Sleep(100 * time.Millisecond)
 	}()
 
@@ -85,7 +99,17 @@ func seguroOrdenado() {
 func main() {
 	fmt.Println("=== Elige una sección para ejecutar ===")
 	// TODO: comenta/activa la versión que desees probar
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("¿Ejecutar deadlock (d) o seguro (s)? ")
+	choice, _ := reader.ReadString('\n')
+	choice = strings.TrimSpace(choice)
 
-	// deadlock()      // <- provocará interbloqueo
-	seguroOrdenado()   // <- versión segura
+	switch choice {
+	case "d":
+		deadlock() // <- provocará interbloqueo
+	case "s":
+		seguroOrdenado() // <- versión seguraase
+
+	}
+
 }
